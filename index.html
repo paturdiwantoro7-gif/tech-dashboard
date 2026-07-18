@@ -133,6 +133,12 @@
   .subchart-label{font-size:11.5px;color:var(--text-2);font-weight:600;margin:14px 0 8px;text-transform:uppercase;letter-spacing:.04em;}
   .chart-footnote{font-size:11.5px;color:var(--text-3);margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);line-height:1.5;}
   .chart-footnote b{color:var(--text-2);}
+  #detailCard{border-color:var(--biru);box-shadow:0 0 0 3px rgba(47,95,224,.08),var(--shadow);scroll-margin-top:20px;}
+  #detailNote b{color:var(--biru);}
+  #clearDetailBtn{background:var(--surface-2);color:var(--text-2);border:1px solid var(--border);border-radius:7px;
+    padding:3px 10px;font-size:11px;cursor:pointer;font-family:'Inter';margin-left:10px;font-weight:600;}
+  #clearDetailBtn:hover{border-color:var(--merah);color:var(--merah);}
+  canvas{cursor:pointer;}
 
   .granularity-toggle{display:flex;gap:4px;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:3px;}
   .granularity-toggle button{background:transparent;border:none;color:var(--text-2);font-size:11.5px;font-weight:600;
@@ -172,7 +178,7 @@
   <header>
     <div>
       <div class="eyebrow"><span class="dot"></span>Divisi Tech · Tracking Request 4 Fase</div>
-      <h1>DASHBOARD TECH DIVISON</h1>
+      <h1>Dashboard Tech</h1>
       <div class="sub">Sumber: sheet <b style="color:var(--text)">DAILY</b> · Google Sheets "TECH TEAM WORK"</div>
     </div>
     <div class="period-badge">Periode data <b id="periodLabel">—</b></div>
@@ -313,7 +319,20 @@
     </div>
   </div>
 
-  <footer>Dashboard Tech Divison · TECH TEAM WORK — sinkron otomatis dari Google Sheets</footer>
+  <div class="card" id="detailCard">
+    <div class="card-head">
+      <div class="card-title">📋 Detail Data</div>
+      <div class="card-note" id="detailNote">Klik salah satu grafik di atas untuk melihat detail data-nya di sini</div>
+    </div>
+    <div class="table-scroll" style="max-height:420px;">
+      <table>
+        <thead><tr><th>ID</th><th>Tanggal</th><th>Divisi</th><th>Jenis</th><th>Tier</th><th>Prioritas</th><th>PIC</th><th>Status</th><th>Durasi</th><th>Pemohon</th><th>Judul</th></tr></thead>
+        <tbody id="detailBody"><tr><td colspan="11" class="empty-row">Belum ada grafik yang diklik</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>Dashboard Tech · TECH TEAM WORK — sinkron otomatis dari Google Sheets</footer>
 </div>
 
 <script>
@@ -1068,6 +1087,14 @@ function renderCategoryTrend(data){
     type:'line',
     data:{ labels:buckets.map(bucketLabel), datasets },
     options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      onClick:(evt, elements)=>{
+        if(!elements.length) return;
+        const y = evt.native ? evt.native.offsetY : evt.y;
+        let best = elements[0], bestDist = Infinity;
+        elements.forEach(el=>{ const d = Math.abs(el.element.y - y); if(d < bestDist){ bestDist = d; best = el; } });
+        const cat = categories[best.datasetIndex], bucket = buckets[best.index];
+        renderDetailTable(keyed.filter(t=>t.jenis===cat && bucketKey(t)===bucket), `${cat} — ${bucketLabel(bucket)}`);
+      },
       plugins:{ legend:{position:'bottom',labels:{boxWidth:9,boxHeight:9,padding:10,font:{size:10.5}}},
         tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10} },
       scales:{ x:{stacked:true,grid:{display:false},ticks:{font:{size:10},maxRotation:0,autoSkip:true}},
@@ -1092,6 +1119,14 @@ function renderTierTrend(data){
     type:'line',
     data:{ labels:buckets.map(bucketLabel), datasets },
     options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      onClick:(evt, elements)=>{
+        if(!elements.length) return;
+        const y = evt.native ? evt.native.offsetY : evt.y;
+        let best = elements[0], bestDist = Infinity;
+        elements.forEach(el=>{ const d = Math.abs(el.element.y - y); if(d < bestDist){ bestDist = d; best = el; } });
+        const tier = tiers[best.datasetIndex], bucket = buckets[best.index];
+        renderDetailTable(keyed.filter(t=>t.tier===tier && bucketKey(t)===bucket), `${tier} — ${bucketLabel(bucket)}`);
+      },
       plugins:{ legend:{position:'bottom',labels:{boxWidth:9,boxHeight:9,padding:10,font:{size:10.5}}},
         tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10} },
       scales:{ x:{stacked:true,grid:{display:false},ticks:{font:{size:10},maxRotation:0,autoSkip:true}},
@@ -1110,6 +1145,7 @@ function renderCategoryDist(data){
     data:{ labels:cats, datasets:[{ data:vals, backgroundColor:cats.map(c=>CATEGORY_COLORS[c]), borderRadius:5, maxBarThickness:22 }]},
     options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
       layout:{padding:{right:26}},
+      onClick:(evt, elements)=>{ if(!elements.length) return; const cat = cats[elements[0].index]; renderDetailTable(data.filter(t=>t.jenis===cat), `Kategori: ${cat}`); },
       plugins:{legend:{display:false}, tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10}, datalabels:{display:true, anchor:'end', align:'end', clamp:true, color:'#131B31', font:{weight:700,size:10.5}, formatter:(v)=>v}},
       scales:{ x:{grid:{color:'#EDF1F7'},ticks:{font:{size:10.5}}}, y:{grid:{display:false},ticks:{font:{size:11}}} } }
   });
@@ -1126,6 +1162,7 @@ function renderTier(data){
     type:'doughnut',
     data:{ labels:tiers, datasets:[{ data:vals, backgroundColor:tiers.map(t=>TIER_COLORS[t]), borderColor:'#FFFFFF', borderWidth:2 }]},
     options:{ responsive:true, maintainAspectRatio:false, cutout:'68%',
+      onClick:(evt, elements)=>{ if(!elements.length) return; const tier = tiers[elements[0].index]; renderDetailTable(data.filter(t=>t.tier===tier), `Tier: ${tier}`); },
       plugins:{ legend:{position:'right',labels:{boxWidth:9,boxHeight:9,font:{size:10.5},padding:8}},
         tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10}, datalabels:{display:true, color:'#FFFFFF', font:{weight:700,size:11}, formatter:(v)=>v} } }
   });
@@ -1165,6 +1202,7 @@ function renderDurasiAvg(data){
     data:{ labels: rows.map(r=>r.cat), datasets:[{ data: rows.map(r=>+r.avg.toFixed(1)), backgroundColor: rows.map(r=>CATEGORY_COLORS[r.cat]), borderRadius:5, maxBarThickness:22 }]},
     options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
       layout:{padding:{right:36}},
+      onClick:(evt, elements)=>{ if(!elements.length) return; const r = rows[elements[0].index]; renderDetailTable(data.filter(t=>t.jenis===r.cat && typeof t.durasi==='number' && t.durasi>=0), `Rata-rata Durasi: ${r.cat}`); },
       plugins:{legend:{display:false},
         tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10,
           callbacks:{ label:(ctx)=> `Rata-rata ${ctx.parsed.x} hari (n=${rows[ctx.dataIndex].n} task)` }},
@@ -1192,6 +1230,7 @@ function renderDurasiRange(data){
     }]},
     options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
       layout:{padding:{right:52}},
+      onClick:(evt, elements)=>{ if(!elements.length) return; const r = rows[elements[0].index]; renderDetailTable(data.filter(t=>t.jenis===r.cat && typeof t.durasi==='number' && t.durasi>=0), `Rentang Durasi: ${r.cat}`); },
       plugins:{legend:{display:false},
         tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10,
           callbacks:{ label:(ctx)=>{ const r=rows[ctx.dataIndex]; return `Tercepat ${r.min} hari · Terlama ${r.max} hari`; } }},
@@ -1224,6 +1263,7 @@ function renderVendorSubmit(data){
     data:{ labels: rows.map(r=>r.cat), datasets:[{ data: rows.map(r=>+r.avg.toFixed(1)), backgroundColor: rows.map(r=>CATEGORY_COLORS[r.cat]), borderRadius:5, maxBarThickness:26 }]},
     options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
       layout:{padding:{right:36}},
+      onClick:(evt, elements)=>{ if(!elements.length) return; const r = rows[elements[0].index]; renderDetailTable(vendorTasks.filter(t=>t.jenis===r.cat), `Pengajuan ke Vendor: ${r.cat}`); },
       plugins:{legend:{display:false},
         tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10,
           callbacks:{ label:(ctx)=>{ const r=rows[ctx.dataIndex]; return [`Rata-rata ${r.avg.toFixed(1)} hari (n=${r.n})`, `Rentang: ${r.min}–${r.max} hari`]; } }},
@@ -1253,6 +1293,7 @@ function renderVendorSubmitRange(data){
     }]},
     options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
       layout:{padding:{right:52}},
+      onClick:(evt, elements)=>{ if(!elements.length) return; const r = rows[elements[0].index]; renderDetailTable(vendorTasks.filter(t=>t.jenis===r.cat), `Pengajuan ke Vendor: ${r.cat}`); },
       plugins:{legend:{display:false},
         tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10,
           callbacks:{ label:(ctx)=>{ const r=rows[ctx.dataIndex]; return `Tercepat ${r.min} hari · Terlama ${r.max} hari (n=${r.n})`; } }},
@@ -1271,6 +1312,7 @@ function renderDivisi(data){
     data:{ labels:sorted.map(s=>s[0]), datasets:[{ data:sorted.map(s=>s[1]), backgroundColor:COLORS.biru, borderRadius:4, maxBarThickness:18 }]},
     options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
       layout:{padding:{right:26}},
+      onClick:(evt, elements)=>{ if(!elements.length) return; const divisi = sorted[elements[0].index][0]; renderDetailTable(data.filter(t=>t.divisi===divisi), `Divisi: ${divisi}`); },
       plugins:{legend:{display:false}, tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10}, datalabels:{display:true, anchor:'end', align:'end', clamp:true, color:'#131B31', font:{weight:700,size:10.5}, formatter:(v)=>v}},
       scales:{ x:{grid:{color:'#EDF1F7'},ticks:{font:{size:10.5}}}, y:{grid:{display:false},ticks:{font:{size:11}}} } }
   });
@@ -1287,6 +1329,7 @@ function renderStatus(data){
     data:{ labels, datasets:[{ data:labels.map(l=>counts[l]), backgroundColor:labels.map(l=>STATUS_COLORS[l]||COLORS.abu), borderRadius:6, maxBarThickness:46 }]},
     options:{ responsive:true, maintainAspectRatio:false,
       layout:{padding:{top:20}},
+      onClick:(evt, elements)=>{ if(!elements.length) return; const status = labels[elements[0].index]; renderDetailTable(data.filter(t=>t.status===status), `Status: ${status}`); },
       plugins:{legend:{display:false}, tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10}, datalabels:{display:true, anchor:'end', align:'top', clamp:true, color:'#131B31', font:{weight:700,size:11}, formatter:(v)=>v}},
       scales:{ x:{grid:{display:false},ticks:{font:{size:10.5}}}, y:{grid:{color:'#EDF1F7'},ticks:{font:{size:10.5}}} } }
   });
@@ -1303,6 +1346,7 @@ function renderRequestor(data){
     data:{ labels:sorted.map(s=>s[0]), datasets:[{ data:sorted.map(s=>s[1]), backgroundColor:COLORS.ungu, borderRadius:4, maxBarThickness:16 }]},
     options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
       layout:{padding:{right:26}},
+      onClick:(evt, elements)=>{ if(!elements.length) return; const pemohon = sorted[elements[0].index][0]; renderDetailTable(data.filter(t=>t.pemohon===pemohon), `Requestor: ${pemohon}`); },
       plugins:{legend:{display:false}, tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10}, datalabels:{display:true, anchor:'end', align:'end', clamp:true, color:'#131B31', font:{weight:700,size:10.5}, formatter:(v)=>v}},
       scales:{ x:{grid:{color:'#EDF1F7'},ticks:{font:{size:10.5}}}, y:{grid:{display:false},ticks:{font:{size:10.5}}} } }
   });
@@ -1317,10 +1361,32 @@ function renderPic(data){
     type:'doughnut',
     data:{ labels, datasets:[{ data:labels.map(l=>counts[l]), backgroundColor:[COLORS.biru,COLORS.hijau,COLORS.oranye,COLORS.ungu], borderColor:'#FFFFFF', borderWidth:2 }]},
     options:{ responsive:true, maintainAspectRatio:false, cutout:'62%',
+      onClick:(evt, elements)=>{ if(!elements.length) return; const pic = labels[elements[0].index]; renderDetailTable(data.filter(t=>t.pic===pic), `PIC: ${pic}`); },
       plugins:{ legend:{position:'bottom',labels:{boxWidth:9,boxHeight:9,font:{size:11},padding:10}},
         tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10}, datalabels:{display:true, color:'#FFFFFF', font:{weight:700,size:11}, formatter:(v)=>v} } }
   });
   document.getElementById('picNote').textContent = data.length + ' task ditangani';
+}
+
+/* ============ DETAIL TABLE (click-to-drill-down) ============ */
+function renderDetailTable(subset, label){
+  const tagClass = { 'Completed':'tag-progress','On Progress':'tag-progress','Pending':'tag-pending','Rejected':'tag-rejected','Rework Needed':'tag-rework' };
+  const sorted = [...subset].sort((a,b)=> (a.tgl<b.tgl?1:-1));
+  document.getElementById('detailNote').innerHTML = `<b>${label}</b> — ${subset.length} task <button id="clearDetailBtn">✕ Tutup</button>`;
+  document.getElementById('detailBody').innerHTML = sorted.length ? sorted.map(t=>`
+    <tr>
+      <td class="id">${t.id}</td><td>${t.tgl||'-'}</td><td>${t.divisi}</td><td>${t.jenis}</td><td>${t.tier.replace('Tier ','T')}</td>
+      <td>${t.prioritas}</td><td>${t.pic}</td>
+      <td><span class="tag ${tagClass[t.status]||'tag-pending'}">${t.status}</span></td>
+      <td class="num">${t.durasi===null||t.durasi===undefined?'-':t.durasi+'h'}</td>
+      <td>${t.pemohon}</td><td>${t.judul}</td>
+    </tr>`).join('') : `<tr><td colspan="11" class="empty-row">Tidak ada data untuk pilihan ini</td></tr>`;
+  document.getElementById('clearDetailBtn')?.addEventListener('click', resetDetailTable);
+  document.getElementById('detailCard').scrollIntoView({behavior:'smooth', block:'center'});
+}
+function resetDetailTable(){
+  document.getElementById('detailNote').textContent = 'Klik salah satu grafik di atas untuk melihat detail data-nya di sini';
+  document.getElementById('detailBody').innerHTML = '<tr><td colspan="11" class="empty-row">Belum ada grafik yang diklik</td></tr>';
 }
 
 /* ============ BACKLOG TABLE ============ */
