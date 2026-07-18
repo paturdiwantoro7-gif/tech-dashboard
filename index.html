@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
 <style>
   :root{
@@ -678,6 +679,8 @@ Chart.defaults.plugins.tooltip.borderColor = '#E2E7F0';
 Chart.defaults.plugins.tooltip.borderWidth = 1;
 Chart.defaults.plugins.tooltip.padding = 10;
 Chart.defaults.plugins.tooltip.boxPadding = 4;
+Chart.register(ChartDataLabels);
+Chart.defaults.set('plugins.datalabels', { display:false }); // opt-in per chart, keeps line charts clean
 
 /* ============ LIVE FETCH FROM GOOGLE SHEETS ============ */
 function parseGvizDate(v){
@@ -1057,7 +1060,8 @@ function renderCategoryDist(data){
     type:'bar',
     data:{ labels:cats, datasets:[{ data:vals, backgroundColor:cats.map(c=>CATEGORY_COLORS[c]), borderRadius:5, maxBarThickness:22 }]},
     options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:false}, tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10}},
+      layout:{padding:{right:26}},
+      plugins:{legend:{display:false}, tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10}, datalabels:{display:true, anchor:'end', align:'end', clamp:true, color:'#131B31', font:{weight:700,size:10.5}, formatter:(v)=>v}},
       scales:{ x:{grid:{color:'#EDF1F7'},ticks:{font:{size:10.5}}}, y:{grid:{display:false},ticks:{font:{size:11}}} } }
   });
   document.getElementById('catNote').textContent = data.length + ' task';
@@ -1074,7 +1078,7 @@ function renderTier(data){
     data:{ labels:tiers, datasets:[{ data:vals, backgroundColor:tiers.map(t=>TIER_COLORS[t]), borderColor:'#FFFFFF', borderWidth:2 }]},
     options:{ responsive:true, maintainAspectRatio:false, cutout:'68%',
       plugins:{ legend:{position:'right',labels:{boxWidth:9,boxHeight:9,font:{size:10.5},padding:8}},
-        tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10} } }
+        tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10}, datalabels:{display:true, color:'#FFFFFF', font:{weight:700,size:11}, formatter:(v)=>v} } }
   });
   document.getElementById('tierNote').textContent = data.length + ' task';
 }
@@ -1107,7 +1111,8 @@ function renderDivisi(data){
     type:'bar',
     data:{ labels:sorted.map(s=>s[0]), datasets:[{ data:sorted.map(s=>s[1]), backgroundColor:COLORS.biru, borderRadius:4, maxBarThickness:18 }]},
     options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:false}, tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10}},
+      layout:{padding:{right:26}},
+      plugins:{legend:{display:false}, tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10}, datalabels:{display:true, anchor:'end', align:'end', clamp:true, color:'#131B31', font:{weight:700,size:10.5}, formatter:(v)=>v}},
       scales:{ x:{grid:{color:'#EDF1F7'},ticks:{font:{size:10.5}}}, y:{grid:{display:false},ticks:{font:{size:11}}} } }
   });
   document.getElementById('divisiNote').textContent = Object.keys(counts).length + ' divisi';
@@ -1122,7 +1127,8 @@ function renderStatus(data){
     type:'bar',
     data:{ labels, datasets:[{ data:labels.map(l=>counts[l]), backgroundColor:labels.map(l=>STATUS_COLORS[l]||COLORS.abu), borderRadius:6, maxBarThickness:46 }]},
     options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:false}, tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10}},
+      layout:{padding:{top:20}},
+      plugins:{legend:{display:false}, tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10}, datalabels:{display:true, anchor:'end', align:'top', clamp:true, color:'#131B31', font:{weight:700,size:11}, formatter:(v)=>v}},
       scales:{ x:{grid:{display:false},ticks:{font:{size:10.5}}}, y:{grid:{color:'#EDF1F7'},ticks:{font:{size:10.5}}} } }
   });
   document.getElementById('statusNote').textContent = data.length + ' task';
@@ -1137,7 +1143,8 @@ function renderRequestor(data){
     type:'bar',
     data:{ labels:sorted.map(s=>s[0]), datasets:[{ data:sorted.map(s=>s[1]), backgroundColor:COLORS.ungu, borderRadius:4, maxBarThickness:16 }]},
     options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:false}, tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10}},
+      layout:{padding:{right:26}},
+      plugins:{legend:{display:false}, tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10}, datalabels:{display:true, anchor:'end', align:'end', clamp:true, color:'#131B31', font:{weight:700,size:10.5}, formatter:(v)=>v}},
       scales:{ x:{grid:{color:'#EDF1F7'},ticks:{font:{size:10.5}}}, y:{grid:{display:false},ticks:{font:{size:10.5}}} } }
   });
 }
@@ -1152,7 +1159,7 @@ function renderPic(data){
     data:{ labels, datasets:[{ data:labels.map(l=>counts[l]), backgroundColor:[COLORS.biru,COLORS.hijau,COLORS.oranye,COLORS.ungu], borderColor:'#FFFFFF', borderWidth:2 }]},
     options:{ responsive:true, maintainAspectRatio:false, cutout:'62%',
       plugins:{ legend:{position:'bottom',labels:{boxWidth:9,boxHeight:9,font:{size:11},padding:10}},
-        tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10} } }
+        tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10}, datalabels:{display:true, color:'#FFFFFF', font:{weight:700,size:11}, formatter:(v)=>v} } }
   });
   document.getElementById('picNote').textContent = data.length + ' task ditangani';
 }
