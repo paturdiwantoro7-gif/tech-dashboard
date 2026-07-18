@@ -7,7 +7,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
 <style>
   :root{
     --bg:#EEF1F7; --surface:#FFFFFF; --surface-2:#F4F6FA;
@@ -75,11 +77,23 @@
     padding:9px 14px;font-size:12.5px;cursor:pointer;font-family:'Inter';transition:.15s;font-weight:600;}
   #resetBtn:hover{border-color:var(--merah);color:var(--merah);}
   #activeFilterNote{font-size:12px;color:var(--oranye);font-family:'JetBrains Mono',monospace;}
-  input[type="date"]{
+  #fDateRange{ display:none; }
+  .fp-alt-input{
     background:transparent;color:var(--text);border:none;border-radius:9px;padding:6px 4px;
-    font-size:12.5px;font-family:'JetBrains Mono',monospace;cursor:pointer;outline:none;color-scheme:dark;
+    font-size:12.5px;font-family:'JetBrains Mono',monospace;cursor:pointer;outline:none;
+    width:170px;
   }
-  .date-sep{color:var(--text-3);font-size:12px;padding:0 2px;}
+  .fp-alt-input::placeholder{color:var(--text-3);font-family:'Inter',sans-serif;}
+  .filter-group.date-group svg{color:var(--text-3);flex-shrink:0;}
+  /* flatpickr theme override to match dashboard */
+  .flatpickr-calendar{box-shadow:var(--shadow);border:1px solid var(--border);border-radius:12px;font-family:'Inter',sans-serif;}
+  .flatpickr-day.selected,.flatpickr-day.startRange,.flatpickr-day.endRange{background:var(--biru);border-color:var(--biru);}
+  .flatpickr-day.inRange{background:rgba(47,95,224,.12);border-color:transparent;box-shadow:none;}
+  .flatpickr-day:hover{background:var(--surface-2);}
+  .flatpickr-months .flatpickr-month,.flatpickr-current-month .flatpickr-monthDropdown-months{color:var(--text);}
+  .flatpickr-weekday{color:var(--text-3);}
+  .flatpickr-day{color:var(--text);}
+  .flatpickr-day.flatpickr-disabled{color:var(--text-3);opacity:.4;}
 
   .kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:22px;}
   @media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(3,1fr);}}
@@ -183,11 +197,9 @@
     <div class="filter-group"><label>Tier</label><select id="fTier"><option value="all">Semua Tier</option></select></div>
     <div class="filter-group"><label>Status</label><select id="fStatus"><option value="all">Semua Status</option></select></div>
     <div class="filter-group"><label>PIC</label><select id="fPic"><option value="all">Semua PIC</option></select></div>
-    <div class="filter-group">
+    <div class="filter-group date-group">
       <label>Periode</label>
-      <input type="date" id="fDateFrom">
-      <span class="date-sep">→</span>
-      <input type="date" id="fDateTo">
+      <input type="text" id="fDateRange" placeholder="Semua periode" readonly>
     </div>
     <button id="resetBtn">↺ Reset Filter</button>
     <span id="activeFilterNote"></span>
@@ -806,6 +818,26 @@ let filters = { divisi:'all', tier:'all', status:'all', pic:'all', dateFrom:'', 
 let charts = {};
 let granularity = 'monthly';
 
+const datePicker = flatpickr('#fDateRange', {
+  mode: 'range',
+  dateFormat: 'Y-m-d',
+  altInput: true,
+  altFormat: 'd M Y',
+  altInputClass: 'fp-alt-input',
+  locale: { rangeSeparator: ' → ' },
+  onChange: (selectedDates)=>{
+    if(selectedDates.length === 2){
+      const toLocalYMD = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      filters.dateFrom = toLocalYMD(selectedDates[0]);
+      filters.dateTo = toLocalYMD(selectedDates[1]);
+      render();
+    } else if(selectedDates.length === 0){
+      filters.dateFrom = ''; filters.dateTo = '';
+      render();
+    }
+  }
+});
+
 function uniqueSorted(arr){ return [...new Set(arr)].filter(Boolean).sort(); }
 
 function repopulateFilters(){
@@ -824,10 +856,8 @@ function repopulateFilters(){
   });
   const dates = TASKS.map(t=>t.tgl).filter(Boolean).sort();
   if(dates.length){
-    document.getElementById('fDateFrom').min = dates[0];
-    document.getElementById('fDateFrom').max = dates[dates.length-1];
-    document.getElementById('fDateTo').min = dates[0];
-    document.getElementById('fDateTo').max = dates[dates.length-1];
+    datePicker.set('minDate', dates[0]);
+    datePicker.set('maxDate', dates[dates.length-1]);
   }
 }
 ['fDivisi','fTier','fStatus','fPic'].forEach(id=>{
@@ -839,18 +869,16 @@ function repopulateFilters(){
 document.getElementById('resetBtn').addEventListener('click', ()=>{
   filters = { divisi:'all', tier:'all', status:'all', pic:'all', dateFrom:'', dateTo:'' };
   ['fDivisi','fTier','fStatus','fPic'].forEach(id=>document.getElementById(id).value='all');
-  document.getElementById('fDateFrom').value = '';
-  document.getElementById('fDateTo').value = '';
+  datePicker.clear();
   render();
 });
-document.getElementById('fDateFrom').addEventListener('change', e=>{ filters.dateFrom = e.target.value; render(); });
-document.getElementById('fDateTo').addEventListener('change', e=>{ filters.dateTo = e.target.value; render(); });
 document.getElementById('granToggle').addEventListener('click', (e)=>{
   const btn = e.target.closest('button'); if(!btn) return;
   granularity = btn.dataset.g;
   [...document.getElementById('granToggle').children].forEach(b=>b.classList.toggle('active', b===btn));
   render();
 });
+
 
 function applyFilters(){
   return TASKS.filter(t=>
