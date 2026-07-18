@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DASHBOARD | TECH DIVISION REQUEST</title>
+<title>Tech Ops Dashboard — Tracking Request</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -240,6 +240,23 @@
       <div class="card-head"><div class="card-title">Distribusi Tier & SLA</div><div class="card-note" id="tierNote"></div></div>
       <div class="chart-box" style="height:170px;"><canvas id="chartTier"></canvas></div>
       <div class="sla-list" id="slaList"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-head">
+      <div class="card-title">Standar Durasi per Kategori Request</div>
+      <div class="card-note">Sumber: kolom Durasi Total (hari) — dipakai sebagai acuan SLA</div>
+    </div>
+    <div class="grid2" style="margin-bottom:0;">
+      <div>
+        <div class="subchart-label">Rata-rata Durasi (hari)</div>
+        <div class="chart-box" style="height:270px;"><canvas id="chartDurasiAvg"></canvas></div>
+      </div>
+      <div>
+        <div class="subchart-label">Rentang Durasi — Tercepat vs Terlama (hari)</div>
+        <div class="chart-box" style="height:270px;"><canvas id="chartDurasiRange"></canvas></div>
+      </div>
     </div>
   </div>
 
@@ -746,6 +763,7 @@ async function fetchLiveData(){
       status: findCol(cols,'status'),
       selesai: findCol(cols,'tgl actual live'),
       pemohon: findCol(cols,'nama pemohon'),
+      durasiKol: findCol(cols,'durasi total'),
     };
     if(idx.id<0 || idx.jenis<0) throw new Error('Kolom wajib (ID/Jenis Request) tidak ditemukan — cek header sheet');
 
@@ -760,6 +778,8 @@ async function fetchLiveData(){
       const selesai = parseGvizDate(selesaiRaw);
       const jenis = cellVal(r, idx.jenis) || 'Lainnya';
       const vendorRaw = (cellVal(r, idx.vendor)||'').toString().toUpperCase();
+      const durasiKolVal = cellVal(r, idx.durasiKol);
+      const durasi = (typeof durasiKolVal === 'number') ? durasiKolVal : daysBetween(tgl, selesai);
       parsed.push({
         id: id.toString(),
         tgl: tgl,
@@ -772,7 +792,7 @@ async function fetchLiveData(){
         pic: cellVal(r, idx.pic) || '-',
         vendor: vendorRaw.startsWith('Y') ? 'Y' : 'N',
         status: cellVal(r, idx.status) || 'Unknown',
-        durasi: daysBetween(tgl, selesai),
+        durasi: durasi,
         pemohon: cellVal(r, idx.pemohon) || '-',
       });
     });
@@ -949,6 +969,8 @@ function render(){
   renderCategoryDist(data);
   renderTier(data);
   renderSLA(data);
+  renderDurasiAvg(data);
+  renderDurasiRange(data);
   renderDivisi(data);
   renderStatus(data);
   renderRequestor(data);
@@ -1100,6 +1122,55 @@ function renderSLA(data){
       <div class="sla-top"><span class="name">${r.name}</span><span class="val" style="color:${r.pct>=r.target?COLORS.hijau:COLORS.oranye}">${r.pct.toFixed(1)}% <span style="color:var(--text-3);font-weight:400">/ target ${r.target}%</span></span></div>
       <div class="sla-bar"><div class="sla-fill" style="width:${Math.min(r.pct,100)}%;background:${r.color}"></div></div>
     </div>`).join('');
+}
+
+/* ============ DURASI: RATA-RATA per KATEGORI ============ */
+function renderDurasiAvg(data){
+  const cats = Object.keys(CATEGORY_COLORS).filter(c=>data.some(t=>t.jenis===c));
+  const rows = cats.map(c=>{
+    const vals = data.filter(t=>t.jenis===c && typeof t.durasi==='number' && t.durasi>=0).map(t=>t.durasi);
+    return { cat:c, avg: vals.length? vals.reduce((a,b)=>a+b,0)/vals.length : null, n: vals.length };
+  }).filter(r=>r.avg!==null).sort((a,b)=>b.avg-a.avg);
+
+  if(charts.durasiAvg) charts.durasiAvg.destroy();
+  charts.durasiAvg = new Chart(document.getElementById('chartDurasiAvg'), {
+    type:'bar',
+    data:{ labels: rows.map(r=>r.cat), datasets:[{ data: rows.map(r=>+r.avg.toFixed(1)), backgroundColor: rows.map(r=>CATEGORY_COLORS[r.cat]), borderRadius:5, maxBarThickness:22 }]},
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      layout:{padding:{right:36}},
+      plugins:{legend:{display:false},
+        tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10,
+          callbacks:{ label:(ctx)=> `Rata-rata ${ctx.parsed.x} hari (n=${rows[ctx.dataIndex].n} task)` }},
+        datalabels:{display:true, anchor:'end', align:'end', clamp:true, color:'#131B31', font:{weight:700,size:10.5}, formatter:(v)=> v+' hr'}},
+      scales:{ x:{grid:{color:'#EDF1F7'},ticks:{font:{size:10.5}},beginAtZero:true}, y:{grid:{display:false},ticks:{font:{size:11}}} } }
+  });
+}
+
+/* ============ DURASI: RENTANG MIN-MAX per KATEGORI ============ */
+function renderDurasiRange(data){
+  const cats = Object.keys(CATEGORY_COLORS).filter(c=>data.some(t=>t.jenis===c));
+  const rows = cats.map(c=>{
+    const vals = data.filter(t=>t.jenis===c && typeof t.durasi==='number' && t.durasi>=0).map(t=>t.durasi);
+    if(!vals.length) return null;
+    return { cat:c, min:Math.min(...vals), max:Math.max(...vals) };
+  }).filter(Boolean).sort((a,b)=>b.max-a.max);
+
+  if(charts.durasiRange) charts.durasiRange.destroy();
+  charts.durasiRange = new Chart(document.getElementById('chartDurasiRange'), {
+    type:'bar',
+    data:{ labels: rows.map(r=>r.cat), datasets:[{
+      data: rows.map(r=>[r.min, r.max]),
+      backgroundColor: rows.map(r=>CATEGORY_COLORS[r.cat]+'99'),
+      borderColor: rows.map(r=>CATEGORY_COLORS[r.cat]), borderWidth:1.5, borderRadius:5, maxBarThickness:22
+    }]},
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      layout:{padding:{right:52}},
+      plugins:{legend:{display:false},
+        tooltip:{backgroundColor:'#FFFFFF',borderColor:'#E2E7F0',borderWidth:1,padding:10,
+          callbacks:{ label:(ctx)=>{ const r=rows[ctx.dataIndex]; return `Tercepat ${r.min} hari · Terlama ${r.max} hari`; } }},
+        datalabels:{display:true, anchor:'end', align:'end', clamp:true, color:'#131B31', font:{weight:700,size:10}, formatter:(v)=> v[0]+'–'+v[1]+' hr'}},
+      scales:{ x:{grid:{color:'#EDF1F7'},ticks:{font:{size:10.5}},beginAtZero:true}, y:{grid:{display:false},ticks:{font:{size:11}}} } }
+  });
 }
 
 /* ============ DIVISI ============ */
