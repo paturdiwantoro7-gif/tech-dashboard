@@ -131,6 +131,8 @@
   .card-note{font-size:11px;color:var(--text-3);font-family:'JetBrains Mono',monospace;}
   .chart-box{position:relative;}
   .subchart-label{font-size:11.5px;color:var(--text-2);font-weight:600;margin:14px 0 8px;text-transform:uppercase;letter-spacing:.04em;}
+  .chart-footnote{font-size:11.5px;color:var(--text-3);margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);line-height:1.5;}
+  .chart-footnote b{color:var(--text-2);}
 
   .granularity-toggle{display:flex;gap:4px;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:3px;}
   .granularity-toggle button{background:transparent;border:none;color:var(--text-2);font-size:11.5px;font-weight:600;
@@ -258,6 +260,7 @@
         <div class="chart-box" style="height:270px;"><canvas id="chartDurasiRange"></canvas></div>
       </div>
     </div>
+    <div class="chart-footnote">ℹ️ <b>0 hari</b> berarti request selesai di hari yang sama dengan tanggal masuk (<i>same-day</i>) — bukan berarti belum dikerjakan.</div>
   </div>
 
   <div class="grid3">
